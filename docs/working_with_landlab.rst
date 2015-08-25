@@ -5,18 +5,18 @@ What goes into a Landlab Model?
 
 In the previous section, we showed you most of the core functionality of the Landlab grid. In this section, we introduce you to how to actually use it, to build models and work with the Landlab component library.
 
-Using Landlab requires that you build a Python script to import, instantiate, and then run your landscape model. We describe such a script as a **driver**.  It’s also possible to do the same set of processes on the fly in an interactive Python environment like iPython.
+Using Landlab requires that you build a Python script that is referred to as a **driver**. This driver is your own unique landscape **model**.  It’s also possible to do the same set of processes on the fly in an interactive Python environment like iPython.
 
 Typically, a driver file will consist of six distinct sections:
 
 * **Import** the Python and Landlab libraries you’ll need to run your model
 * **Instantiate** the Landlab elements (grid and, if using them, components)
-* **Load** any necessary data into the grid fields
+* **Load** any necessary data into the grid fields or parameter values
 * Set the **boundary conditions**
-* **Run** the model, typically by creating a for loop or using a Landlab generator (see below)
+* **Run** the processes on the grid, typically by creating a for loop or using a Landlab generator (see below)
 * **Finalize** and handle the data (e.g., plot, export)
 
-Beyond the driver, if you’re using Landlab components, you’ll probably also need a **parameter file**. This file supplies the components with the additional parameter and setup information they need. Landlab parameter files are text files (.txt), have fixed format, and for convenience (so you only have to specify the minimum of path information in the file name) should be placed in the same folder as the driver file. Find out more about parameter files :ref:`here <input_files>`. However, if you’re not using components, there’s little need to create a parameter file; you can just directly other parameters to the grid in the driver. 
+Beyond the driver or model file, if you’re using Landlab components, you’ll probably also need a **parameter file**. This file supplies the components with the additional parameter and setup information they need. Landlab parameter files are text files (.txt), have fixed format, and for convenience (so you only have to specify the minimum of path information in the file name) should be placed in the same folder as the driver file. Find out more about parameter files :ref:`here <input_files>`. However, if you’re not using components, there’s little need to create a parameter file; you can just directly set parameters in the grid in the driver. 
 
 
 A Brief Introduction to Components
@@ -28,7 +28,7 @@ A key strength of Landlab is that not only is it designed to make implementing y
 * Interoperable with all other components
 * Implementable in your driver in only one or two lines of code
 
-Note that by no means is using the component library necessary or even always desirable when working with Landlab. However, we hope that their availability and ease of use will dramatically reduce the time investment needed to implement a wide variety of modelling scenarios. In particular, components should make production of models coupling more than one process significantly easier, as existing, off-the-shelf components can be slotted in alongside novel process descriptions.
+Note that by no means is using the component library necessary or even always desirable when working with Landlab. However, we hope that their availability and ease of use will dramatically reduce the time investment needed to implement a wide variety of modelling scenarios. In particular, components should make production of models that couple more than one process significantly easier, as existing, off-the-shelf components can be slotted in alongside novel process descriptions.
 
 At the time of writing, the existing library contains the following components:
 
@@ -54,6 +54,8 @@ And under active development are:
 * A deltaic simulator
 
 Note that not all components will run under all conditions, but that any limitations should be made clear in the inline documentation associated with that component (access help either through the indices you can find `on this site <http://landlab.readthedocs.org/en/latest/users_guide.html#list-of-landlab-components>`_ or by typing “[component or method]?” in an interactive Python session). In particular, some components may demand you are running on a regular grid. It should probably also be emphasised that most of these components are still under active development within this beta release of Landlab, and may behave in idiosyncratic ways or be subject to sudden changes with little or no warning. In all cases, we’d recommend contacting the original coder of the component to let them know they have external users to think about before setting out on any major research challenges using it!
+
+If you are familiar with Python and Object Oriented Programing, it is useful to know that components are built as Python classes.  That is why each component used in a model must be instantiated.  The actual code to do the process is contained in a method (or function) of the component class.
 
 
 Implementing a Landlab driver
