@@ -69,7 +69,7 @@ As noted above, the process of creating a driver is essentially equivalent wheth
 Landlab handles a lot like numpy, and like numpy you’ll need to import the various libraries and functions that you’ll want to use. At the very least, we suspect you’ll need from outside Landlab:
 
 * *numpy* itself
-* rudimentary pylab plotting routines: *plot*, *show*, *figure*
+* rudimentary pylab plotting routines: *plot*, *show*, *figure* 
 
 Also useful can be:
 
@@ -95,9 +95,9 @@ A specific example might be:
 2. Instantiate objects
 ++++++++++++++++++++++
 
-As noted in previous sections, Landlab is coded in an `object-oriented style <http://code.tutsplus.com/articles/python-from-scratch-object-oriented-programming--net-21476>`_. This means that we need to “instantiate” the various Landlab objects that we will use to store data and run the model. The grid and all the components are objects, so we need to instantiate them next.
+As noted in previous sections, Landlab is coded in an `object-oriented style <http://code.tutsplus.com/articles/python-from-scratch-object-oriented-programming--net-21476>`_. This means that we need to “instantiate” the various Landlab objects that we will use to store data and run the model. The grid and all the components are class objects, so we need to instantiate them next.
 
-Note that most components require the grid object be passed to them as one of their arguments during instantiation, so the first thing you’ll want to instantiate will be the grid.
+Note that most components require the grid object be passed to them as one of their arguments during instantiation, so the first object you’ll want to instantiate will be the grid.
 
 Check the docstrings for each class (grid, component) you want to instantiate for a detailed description of what you need to supply as arguments. For a RasterModelGrid, this will be (number_of_node_rows, number_of_node_columns, node_spacing(optional)). For a VoronoiDelaunayGrid, it will be (array_of_node_x_coords, array_of_node_y_coords). For a generic component, it will typically be (ModelGrid, ‘path_to_parameter_file.txt’), though there may be some variation, and optional inputs may also be available.
 
@@ -118,7 +118,7 @@ Now we need some data to work with. Here we’ll assume that you’re going to b
 
 You will likely be in one of two situations regarding the initial data you want to put on the grid - either you will have some external data source that you want to load in and use as your initial conditions (e.g., a DEM of some basin, or some other real topography), or you want to set up some simple analytical initial condition like a flat surface with noise or an inclined surface.
 
-In both cases, we advocate a two step process: creating a numpy array of the data, then loading it into the grid as a field. We can illustrate for both of the above cases:
+When creating an initial condition (i.e. not reading in a DEM), we advocate a two step process: creating a numpy array of the data, then loading it into the grid as a field. We can illustrate for both of the above cases:
 
 >>> mg = RasterModelGrid(10,10,1.) #make a grid
 >>> z = np.zeros(100, dtype=float) #make a flat surface, elev 0
