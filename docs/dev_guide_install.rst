@@ -12,6 +12,7 @@ merging) by requesting that the main repository "pull" in your changes. This
 is known as a pull request and is facilitated through the GitHub website.
 
 .. note::
+
     For dev work, we actively recommend Anaconda over the Enthought Python
     Distribution, especially on Windows machines. This is because it ships 
     with a working compiler already associated with Python, whereas the EPD
@@ -247,6 +248,7 @@ will be added to the current pull request and the tests automatically rerun.
 
 You can also run unit tests locally with the `test-installed-landlab.py` script
 found in the `scripts` folder::
+
     > python test-installed-landlab.py --doctest
 
 If you don't want to run the doctests, you can drop the `--doctest` option.
@@ -254,47 +256,88 @@ Note that this script will test whatever version of landlab you have installed,
 which may or may not be the one you are working on in your current working
 directory.
 
+Create a new release
+====================
 
-Building Binary Distributions
-=============================
+New releases are built and uploaded to
+`Anaconda.org <https://anaconda.org/landlab/landlab>`_ whenever a new tag
+that starts with the letter ``v`` is
+`created and pushed to <https://git-scm.com/book/en/v2/Git-Basics-Tagging>`_
+`GitHub <https://github.com/landlab/landlab>`_. As an example, the following
+will cause a new release to be built::
 
-Ultimately, this will be automated but, for now, this is how we build our
-binary distributions. The basic workflow is the following:
+    $ git tag v0.1.1 # Create the tag locally
+    $ git push --tags # Push the tag to the remote
 
-* Create a fresh virtual Python environment
-* Install landlab dependencies
-* Install landlab
-* Create a wheel
-* Deploy the distribution to PyPI.
+A new release is created (``v0.1.1``) and the tag pushed to GitHub.
+`Travis-CI <https://travis-ci.org/landlab/landlab>`_ notices the tagged commit,
+and after building and testing the package, creates a fresh new package that
+is uploaded to `Anaconda.org <https://anaconda.org/landlab/landlab>`_.
 
-The bash script, `dist_to_pypi.sh` is intended to help with this process.
-Note that it uses `conda` to create environments and install packages. Thus,
-to use this script you will need to have Anaconda installed. To build (and
-upload) a new set of binaries::
-    > bash_to_pypi.sh version [version [...]]
+A couple notes about creating a new version:
 
-Where *version* is the Python version for your build. You can also build
-distributions for multiple version of Python. For example::
-    > bash_to_pypi.sh 2.6 2.7 3.3 3.4
+1. The version given in the tag name should match that in
+   ``.conda-recipe/meta.yaml``.
 
-If the version of landlab you are installing is the same as what is already
-on PyPI, you will not be able to upload the new version. To upload a new
-set of wheels, you must fist increase the landlab version number in
-`landlab/__init__.py`.
+2. If you mess up (forget to update all the version strings scattered
+   throughout the code, for example), you can always `delete the tag and
+   recreate it <https://git-scm.com/docs/git-tag>`_. To do this, you'll
+   need to delete both the remote tag and the local tag::
 
-Windows distributions are built in much the same way. However, they are
-created on Appveyor as part of the Windows CI. Note that although Appveyor
-runs the landlab tests with every push to GitHub, binary distributions are
-only built when a version is tagged. To create a tag for a new release::
-    > git tag <version>
+      $ git push --delete origin <tagname> # Delete the tag on the remote repository
+      $ git tag --delete <tagname> # Delete the tag from the local repository
 
-You will then need to push the tag to GitHub to activate the build. For
-example::
-    > git tag v0.1.27
-    > git push --tags
+   where ``<tagname>`` is the name of your tag (``v0.1.1``, for example).
 
-For consistency, please stick with the above version format and follow the
-usual Python versioning standards.
+3. If your new tag was successfully pushed to GitHub, you will be able to see
+   it with the rest of the
+   `releases <https://github.com/landlab/landlab/releases>`_ and
+   `tags <https://github.com/landlab/landlab/tags>`_.
+
+4. To see if your new release was created successfully, you can do one or all
+   of the following:
+
+   *  Check the logs for the build of your tagged commit on
+      `Travis-CI <https://travis-ci.org/landlab/landlab>`_.
+   *  Check `Anaconda.org <https://anaconda.org/landlab/landlab>`_ to see
+      if your releases appear there.
+   *  Check if `conda` can see your new release with `conda search landlab -c
+      landlab`. See the
+      `conda docs <http://conda.pydata.org/docs/using/index.html>`_
+      for a description of ``conda`` and how to use it, or you can always use
+      ``conda -h`` from the command line.
+
+The Release Checklist
+---------------------
+1. Make sure you are on the *release* branch::
+
+       $ git checkout release
+2. Make sure all the release strings match.
+
+   *  ``landlab/__init__.py``
+   *  ``.conda-recipe/meta.yaml``
+3. Create a tag for this release that matches the above strings but that starts
+   with the letter ``v``::
+   
+      $ git tag v0.1.1
+4. Push your tag to the remote::
+
+      $ git push --tags
+
+Helpful links
+-------------
+
+1. `Using conda <http://conda.pydata.org/docs/using/index.html>`_: What
+   `conda` is and how to use it.
+2. `git tags <https://git-scm.com/book/en/v2/Git-Basics-Tagging>`_: What git
+   tags are and how to create them.
+3. `The git tag command <https://git-scm.com/docs/git-tag>`_: A description
+   of all of the options for the `git tag` command (including `git tag
+   --delete`).
+4. `landlab on Travis <https://travis-ci.org/landlab/landlab>`_: The latest
+   Travis builds of landlab.
+5. `landlab on Anaconda <https://anaconda.org/landlab/landlab>`_: The
+   conda packages for landlab releases.
 
 
 Troubleshooting
@@ -303,24 +346,29 @@ Troubleshooting
 What do I do if my pull request cannot be automatically merged?
 ---------------------------------------------------------------
 
-Get the latest upstream/master and go to the `master` branch. Remember, *do not develop here*.
-Always develop in a feature branch. Merge the lastest upstream master with your master::
+Get the latest upstream/master and go to the `master` branch. Remember,
+*do not develop here*.  Always develop in a feature branch. Merge the lastest
+upstream master with your master::
+
   > git fetch upstream
   > git checkout master
   > git merge upstream/master
 
-Go to the branch on which you are developing and merge the lastest upstream master with your
-branch::
+Go to the branch on which you are developing and merge the lastest upstream
+master with your branch::
+
   > git checkout <branch_name>
   > git merge upstream/master
 
-Fix the conflicts. Do this by hand or with a merge editor. This is where you decide how to
-integrate the conflicting changes. Since only you know what and why you made the changes
-you did, this can only be done by you::
+Fix the conflicts. Do this by hand or with a merge editor. This is where you
+decide how to integrate the conflicting changes. Since only you know what and
+why you made the changes you did, this can only be done by you::
+
   > git mergetool
 
-After everything has been fixed, commit the changes and push the changes to the repository.
-The pull request will automatically be updated::
+After everything has been fixed, commit the changes and push the changes to
+the repository.  The pull request will automatically be updated::
+
   > git commit
   > git push
 

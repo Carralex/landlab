@@ -1,8 +1,21 @@
-"""General decorators for the landlab library."""
+"""General decorators for the landlab library.
+
+General Landlab decorators
+++++++++++++++++++++++++++
+
+.. autosummary::
+    :toctree: generated/
+
+    ~landlab.utils.decorators.use_file_name_or_kwds
+    ~landlab.utils.decorators.use_field_name_or_array
+    ~landlab.utils.decorators.make_return_array_immutable
+    ~landlab.utils.decorators.deprecated
+"""
 
 import os
 import warnings
 from functools import wraps
+import textwrap
 
 import numpy as np
 import six
@@ -92,6 +105,9 @@ class use_field_name_or_array(object):
     ----------
     func : function
         A function that accepts a grid and array as arguments.
+    at_element : str
+        The element type that the field is defined on ('node', 'cell',
+        etc.)
 
     Returns
     -------
@@ -186,26 +202,83 @@ def make_return_array_immutable(func):
     return _wrapped
 
 
-def deprecated(func):
+# def deprecated(use, version):
+#     """Mark a function as deprecated.
+# 
+#     Parameters
+#     ----------
+#     use : str
+#         Name of replacement function to use.
+#     version : str
+#         Version number when function was marked as deprecated.
+# 
+#     Returns
+#     -------
+#     func
+#         A wrapped function that issues a deprecation warning.
+#     """
+#     def real_decorator(func):
+# 
+#         def _wrapped(*args, **kwargs):
+#             """Warn that the function is deprecated before calling it."""
+#             warnings.warn(
+#                 "Call to deprecated function {name}.".format(
+#                     name=func.__name__), category=DeprecationWarning)
+#             return func(*args, **kwargs)
+#         _wrapped.__dict__.update(func.__dict__)
+# 
+#         return _wrapped
+# 
+#     return real_decorator
+
+def deprecated(use, version):
     """Mark a function as deprecated.
 
     Parameters
     ----------
-    func : function
-        A function.
+    use : str
+        Name of replacement function to use.
+    version : str
+        Version number when function was marked as deprecated.
 
     Returns
     -------
     func
         A wrapped function that issues a deprecation warning.
     """
-    @wraps(func)
-    def _wrapped(*args, **kwargs):
-        """Warn that the function is deprecated before calling it."""
-        warnings.warn(
-            "Call to deprecated function {name}.".format(name=func.__name__),
-            category=DeprecationWarning)
-        return func(*args, **kwargs)
-    _wrapped.__dict__.update(func.__dict__)
+    def real_decorator(func):
+        warning_str = """
+.. note:: This method is deprecated as of Landlab version {ver}.
 
-    return _wrapped
+    Use :func:`{use}` instead.
+
+""".format(ver=version, use=use)
+
+        doc_lines = (func.__doc__ or "").split(os.linesep)
+
+        for lineno, line in enumerate(doc_lines):
+            if len(line.rstrip()) == 0:
+                break
+
+        head = doc_lines[:lineno]
+        body = doc_lines[lineno:]
+
+        head = textwrap.dedent(os.linesep.join(head))
+        body = textwrap.dedent(os.linesep.join(body))
+
+        func.__doc__ = os.linesep.join([head, warning_str, body])
+
+        @wraps(func)
+        def _wrapped(*args, **kwargs):
+            if func.__name__.startswith('_'):
+                pass
+            else:
+                warnings.warn(
+                    message="Call to deprecated function {name}.".format(
+                        name=func.__name__), category=DeprecationWarning)
+            return func(*args, **kwargs)
+        _wrapped.__dict__.update(func.__dict__)
+
+        return _wrapped
+
+    return real_decorator

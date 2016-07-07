@@ -1,4 +1,34 @@
 #! /usr/bin/env python
+"""
+Defines the base component class from which Landlab components inherit.
+
+Base component class methods
+++++++++++++++++++++++++++++
+
+.. autosummary::
+    :toctree: generated/
+
+    ~landlab.core.model_component.Component.from_path
+    ~landlab.core.model_component.Component.name
+    ~landlab.core.model_component.Component.units
+    ~landlab.core.model_component.Component.definitions
+    ~landlab.core.model_component.Component.input_var_names
+    ~landlab.core.model_component.Component.output_var_names
+    ~landlab.core.model_component.Component.optional_var_names
+    ~landlab.core.model_component.Component.var_type
+    ~landlab.core.model_component.Component.var_units
+    ~landlab.core.model_component.Component.var_definition
+    ~landlab.core.model_component.Component.var_mapping
+    ~landlab.core.model_component.Component.var_loc
+    ~landlab.core.model_component.Component.var_help
+    ~landlab.core.model_component.Component.initialize_output_fields
+    ~landlab.core.model_component.Component.initialize_optional_output_fields
+    ~landlab.core.model_component.Component.shape
+    ~landlab.core.model_component.Component.grid
+    ~landlab.core.model_component.Component.coords
+    ~landlab.core.model_component.Component.imshow
+"""
+
 from __future__ import print_function
 
 import os
@@ -23,8 +53,38 @@ class classproperty(property):
 
 
 class Component(object):
+    """
+    Defines the base component class from which Landlab components inherit.
+
+    Base component class methods
+    ++++++++++++++++++++++++++++
+
+    .. autosummary::
+        :toctree: generated/
+
+        ~landlab.core.model_component.Component.from_path
+        ~landlab.core.model_component.Component.name
+        ~landlab.core.model_component.Component.units
+        ~landlab.core.model_component.Component.definitions
+        ~landlab.core.model_component.Component.input_var_names
+        ~landlab.core.model_component.Component.output_var_names
+        ~landlab.core.model_component.Component.optional_var_names
+        ~landlab.core.model_component.Component.var_type
+        ~landlab.core.model_component.Component.var_units
+        ~landlab.core.model_component.Component.var_definition
+        ~landlab.core.model_component.Component.var_mapping
+        ~landlab.core.model_component.Component.var_loc
+        ~landlab.core.model_component.Component.var_help
+        ~landlab.core.model_component.Component.initialize_output_fields
+        ~landlab.core.model_component.Component.initialize_optional_output_fields
+        ~landlab.core.model_component.Component.shape
+        ~landlab.core.model_component.Component.grid
+        ~landlab.core.model_component.Component.coords
+        ~landlab.core.model_component.Component.imshow
+    """
     _input_var_names = set()
     _output_var_names = set()
+    _optional_var_names = set()
     _var_units = dict()
 
     def __init__(self, grid, map_vars=None, **kwds):
@@ -70,7 +130,7 @@ class Component(object):
     @classmethod
     def input_var_names(cls):
         """Names of fields that are used by the component.
-        
+
         Returns
         -------
         tuple of str
@@ -82,13 +142,51 @@ class Component(object):
     @classmethod
     def output_var_names(self):
         """Names of fields that are provided by the component.
-        
+
         Returns
         -------
         tuple of str
             Tuple of field names.
         """
         return tuple(self._output_var_names)
+
+    @classproperty
+    @classmethod
+    def optional_var_names(self):
+        """
+        Names of fields that are optionally provided by the component, if
+        any.
+
+        Returns
+        -------
+        tuple of str
+            Tuple of field names.
+        """
+        try:
+            return tuple(self._optional_var_names)
+        except AttributeError:
+            return ()
+
+    @classmethod
+    def var_type(cls, name):
+        """
+        Returns the dtype of a field (float, int, bool, str...), if declared.
+        Default is float.
+
+        Parameters
+        ----------
+        name : str
+            A field name.
+
+        Returns
+        -------
+        dtype
+            The dtype of the field.
+        """
+        try:
+            return cls._var_type[name]
+        except AttributeError:
+            return float
 
     @classproperty
     @classmethod
@@ -200,6 +298,11 @@ class Component(object):
     def var_loc(cls, name):
         """Location where a particular variable is defined.
 
+        Parameters
+        ----------
+        name : str
+            A field name.
+
         Returns
         -------
         str
@@ -207,17 +310,66 @@ class Component(object):
         """
         return cls._var_mapping[name]
 
+    def initialize_output_fields(self):
+        """
+        Create fields for a component based on its input and output var names.
+
+        This method will create new fields (without overwrite) for any fields
+        output by, but not supplied to, the component. New fields are
+        initialized to zero. Ignores optional fields, if specified by
+        _optional_var_names. New fields are created as arrays of floats, unless
+        the component also contains the specifying property _var_type.
+        """
+        for field_to_set in (set(self.output_var_names) -
+                             set(self.input_var_names) -
+                             set(self.optional_var_names)):
+            grp = self.var_loc(field_to_set)
+            type_in = self.var_type(field_to_set)
+            init_vals = self.grid.zeros(grp, dtype=type_in)
+            units_in = self.var_units(field_to_set)
+            self.grid.add_field(grp,
+                                field_to_set,
+                                init_vals,
+                                units=units_in,
+                                copy=False,
+                                noclobber=True)
+
+    def initialize_optional_output_fields(self):
+        """
+        Create fields for a component based on its optional field outputs,
+        if declared in _optional_var_names.
+
+        This method will create new fields (without overwrite) for any fields
+        output by the component as optional. New fields are
+        initialized to zero. New fields are created as arrays of floats, unless
+        the component also contains the specifying property _var_type.
+        """
+        for field_to_set in (set(self.optional_var_names) -
+                             set(self.input_var_names)):
+            self.grid.add_field(self.var_loc(field_to_set),
+                                field_to_set,
+                                self.grid.zeros(
+                                    dtype=self.var_type(field_to_set)),
+                                units=self.var_units(field_to_set),
+                                noclobber=True)
+
     @property
     def shape(self):
+        """Return the grid shape attached to the component, if defined."""
         return self.grid._shape
 
     @property
     def grid(self):
+        """Return the grid attached to the component."""
         return self._grid
 
     @property
     def coords(self):
+        """Return the coordinates of nodes on grid attached to the component.
+        """
         return (self.grid.node_x, self.grid.node_y)
 
     def imshow(self, name, **kwds):
+        """Plot data on the grid attached to the component.
+        """
         self._grid.imshow(name, **kwds)

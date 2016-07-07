@@ -26,6 +26,10 @@ class RouteFlowD8(object):
     diagonals are considered.
     The class assumes that the model is using a rectangular, uniform (raster)
     grid.
+
+    This sets the num_cells parameter.
+    This class assumes that the number of cells does not change after a
+    class item has been instantiated.
     """
 
     def __init__(self, num_nodes):
@@ -92,7 +96,7 @@ class RouteFlowD8(object):
         #        self.flowdirs[i] = mg.find_node_in_direction_of_max_slope(z, i)
 
         #Alt. method, DEJH:
-        self.gradients_on_active_links = mg.calculate_gradients_at_active_links(z)
-        max_slopes, self.flowdirs = mg.calculate_steepest_descent_on_nodes(z, self.gradients_on_active_links, dstr_node_ids=self.flowdirs)
+        self.gradients_on_active_links = mg.calc_grad_at_active_link(z)
+        max_slopes, self.flowdirs = mg._calculate_steepest_descent_on_nodes(z, self.gradients_on_active_links, dstr_node_ids=self.flowdirs)
 
         return self.flowdirs, max_slopes

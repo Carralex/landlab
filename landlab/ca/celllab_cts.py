@@ -21,19 +21,20 @@ Subclasses
 ----------
 
 Landlab provides for several different lattice and connection types:
-- RasterCTS: regular raster grid with transitions between horizontal and
-  vertical cell pairs
-- OrientedRasterCTS: like a RasterLCA, but different transition rates can
-  be assigned to vertical and horizontal pairs. This property of
-  orientation can be used, for example, to implement rules representing
-  gravitational attraction, or flow of a fluid with a particular
-  direction.
-- RasterD8CTS: like a RasterLCA, but includes diagonal as well as vertical
-  and horizontal cell pairs.
-- OrientedRasterD8CTS: as above but orientation also matters.
-- HexCTS: hexagonal grid
-- OrientedHexCTS: hexagonal grid, with transition rates allowed to vary
-  according to orientation.
+
+-  RasterCTS: regular raster grid with transitions between horizontal and
+   vertical cell pairs
+-  OrientedRasterCTS: like a RasterLCA, but different transition rates can
+   be assigned to vertical and horizontal pairs. This property of
+   orientation can be used, for example, to implement rules representing
+   gravitational attraction, or flow of a fluid with a particular
+   direction.
+-  RasterD8CTS: like a RasterLCA, but includes diagonal as well as vertical
+   and horizontal cell pairs.
+-  OrientedRasterD8CTS: as above but orientation also matters.
+-  HexCTS: hexagonal grid
+-  OrientedHexCTS: hexagonal grid, with transition rates allowed to vary
+   according to orientation.
 
 Encoding of "states"
 --------------------
@@ -152,6 +153,22 @@ class Transition():
     describing the node state at each end, and the orientation.
     Orientation is 0: horizontal, L-R; 1: vertical, bottom-top.
     For such a tuple, order is (left/bottom, right/top, orientation).
+
+    Transition() constructor sets 3 required properties and 2 optional
+    properties for a transition from one cell pair to another.
+
+    Parameters
+    ----------
+    from_state : int
+        Code for the starting state of the cell pair (link)
+    to_state : int
+        Code for the new state of the cell pair (link)
+    rate : float
+        Average rate at which this transition occurs (dimension of 1/time)
+    name : string (optional)
+        Name for this transition
+    swap_properties : bool (optional)
+        Flag: should properties be exchanged between the two cells?
     """
 
     def __init__(self, from_state, to_state, rate, name=None,
@@ -191,6 +208,21 @@ class Event():
     The class overrides the __lt__ (less than operator) method so that when
     Event() objects are placed in a PriorityQueue, the earliest event is
     given the highest priority (i.e., placed at the top of the queue).
+
+    Event() constructor sets 3 required properties and one optional
+    property.
+
+    Parameters
+    ----------
+    time : float
+        Time at which the event is scheduled to occur
+    link : int
+        ID of the link at which event occurs
+    xn_to : int
+        New state to which this cell pair (link) will transition
+    propswap : bool (optional)
+        Flag: does this event involve an exchange of properties between
+        the two cells?
 
     Examples
     --------
@@ -236,7 +268,20 @@ class Event():
 
 class CAPlotter():
 
-    """Handle display of a CellLab-CTS grid."""
+    """
+    Handle display of a CellLab-CTS grid.
+
+    CAPlotter() constructor keeps a reference to the CA model, and
+    optionally a colormap to be used with plots.
+
+    Parameters
+    ----------
+    ca : LandlabCellularAutomaton object
+        Reference to a CA model
+    cmap : Matplotlib colormap, optional
+        Colormap to be used in plotting
+
+    """
 
     def __init__(self, ca, cmap=None):
         """
@@ -299,6 +344,23 @@ class CellLabCTSModel(object):
     automaton model. A link connects a pair of cells. Each cell has a state
     (represented by an integer code), and each link also has a state that is
     determined by the states of the cell pair.
+
+    Parameters
+    ----------
+    model_grid : Landlab ModelGrid object
+        Reference to the model's grid
+    node_state_dict : dict
+        Keys are node-state codes, values are the names associated with
+        these codes
+    transition_list : list of Transition objects
+        List of all possible transitions in the model
+    initial_node_states : array of ints (x number of nodes in grid)
+        Starting values for node-state grid
+    prop_data : array (x number of nodes in grid), optional
+        Array of properties associated with each node/cell
+    prop_reset_value : number or object, optional
+        Default or initial value for a node/cell property (e.g., 0.0).
+        Must be same type as *prop_data*.
     """
 
     def __init__(self, model_grid, node_state_dict, transition_list,
@@ -332,8 +394,8 @@ class CellLabCTSModel(object):
 
         # Keep a copy of the model grid; remember how many active links in it
         self.grid = model_grid
-        ###self.active_links_at_node = self.grid.active_links_at_node()
-        self.active_links_at_node = self.grid.active_links_at_node2()
+        ###self._active_links_at_node = self.grid._active_links_at_node()
+        self._active_links_at_node = self.grid._active_links_at_node2()
 
         # Create an array that knows which links are connected to a boundary
         # node
@@ -449,14 +511,14 @@ class CellLabCTSModel(object):
         say, it's a Numpy array of the same length as the number of nodes in
         the grid.
 
+        **Creates**:
+
+        *  self.node_state : 1D array of ints (x number of nodes in grid)
+           The node-state array
+
         Parameters
         ----------
         node_states : 1D array of ints (x number of nodes in grid)
-
-        Creates
-        -------
-        self.node_state : 1D array of ints (x number of nodes in grid)
-            The node-state array
 
         Notes
         -----
@@ -510,11 +572,12 @@ class CellLabCTSModel(object):
         Creates and configures an array that contain the orientation code for
         each active link (and corresponding cell pair).
 
-        Notes
-        -----
         **creates**:
 
         * ``self.active_link_orientation`` : 1D numpy array
+
+        Notes
+        -----
 
         The setup varies depending on the type of LCA. The default is
         non-oriented, in which case we just have an array of zeros. Subclasses
@@ -532,8 +595,6 @@ class CellLabCTSModel(object):
         3-element tuple, comprising the TAIL state, FROM state, and
         orientation) to link states.
 
-        Notes
-        -----
         **creates**:
 
         * ``self.link_state`` : 1D numpy array
@@ -635,8 +696,8 @@ class CellLabCTSModel(object):
         """
 
         # Find out the states of the two nodes, and the orientation
-        ###tail_node_state = self.node_state[self.grid.activelink_fromnode[link_id]]
-        ###head_node_state = self.node_state[self.grid.activelink_tonode[link_id]]
+        ###tail_node_state = self.node_state[self.grid._activelink_fromnode[link_id]]
+        ###head_node_state = self.node_state[self.grid._activelink_tonode[link_id]]
         ###orientation = self.active_link_orientation[link_id]
         tail_node_state = self.node_state[self.grid.node_at_link_tail[link_id]]
         head_node_state = self.node_state[self.grid.node_at_link_head[link_id]]
@@ -654,8 +715,10 @@ class CellLabCTSModel(object):
         Following an "external" change to the node state grid, updates link
         states where necessary and creates any needed events.
 
-        Algorithm
-        ---------
+        Notes
+        -----
+        **Algorithm**::
+
             FOR each active link:
                 if the actual node pair is different from the link's code:
                     change the link state to be correct
@@ -908,7 +971,7 @@ class CellLabCTSModel(object):
                 if _DEBUG:
                     print(' fromnode has changed state, so updating its links')
 
-                for link in self.active_links_at_node[:, tail_node]:
+                for link in self._active_links_at_node[:, tail_node]:
 
                     if _DEBUG:
                         print('f checking link', link)
@@ -934,7 +997,7 @@ class CellLabCTSModel(object):
                 if _DEBUG:
                     print(' tonode has changed state, so updating its links')
 
-                for link in self.active_links_at_node[:, head_node]:
+                for link in self._active_links_at_node[:, head_node]:
 
                     if _DEBUG:
                         print('t checking link', link)
