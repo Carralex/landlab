@@ -74,6 +74,16 @@ class LinearDiffuser(Component):
         performed on a raster. 'on_diagonals' pretends that the "faces" of a
         cell with 8 links are represented by a stretched regular octagon set
         within the true cell.
+    deposit : {True, False}
+        Whether diffusive material can be deposited. True means that diffusive 
+        material will be deposited if the divergence of sediment flux is 
+        negative. False means that even when the divergence of sediment flux is 
+        negative, no material is deposited. (No deposition ever.) The False
+        case is a bit of a band-aid to account for cases when fluvial incision
+        likely removes any material that would be deposited. If one couples
+        fluvial detachment-limited incision with linear diffusion, the channels
+        will not reach the predicted analytical solution unless deposit is set
+        to False.
 
     Examples
     --------
@@ -109,10 +119,10 @@ class LinearDiffuser(Component):
     >>> z2 = mg2.add_zeros('node', 'topographic__elevation')
     >>> dt = 1.
     >>> nt = 10
-    >>> kappa_links = mg2.add_ones('link', 'water__discharge')
+    >>> kappa_links = mg2.add_ones('link', 'surface_water__discharge')
     >>> kappa_links *= 10000.
     >>> dfn1 = LinearDiffuser(mg1, linear_diffusivity=10000.)
-    >>> dfn2 = LinearDiffuser(mg2, linear_diffusivity='water__discharge')
+    >>> dfn2 = LinearDiffuser(mg2, linear_diffusivity='surface_water__discharge')
     >>> for i in range(nt):
     ...     z1[mg1.core_nodes] += 1.
     ...     z2[mg2.core_nodes] += 1.
@@ -121,7 +131,7 @@ class LinearDiffuser(Component):
     >>> np.allclose(z1, z2)
     True
     >>> z2.fill(0.)
-    >>> dfn2 = LinearDiffuser(mg2, linear_diffusivity='water__discharge',
+    >>> dfn2 = LinearDiffuser(mg2, linear_diffusivity='surface_water__discharge',
     ...                       method='resolve_on_patches')
     >>> for i in range(nt):
     ...     z2[mg2.core_nodes] += 1.
@@ -136,29 +146,29 @@ class LinearDiffuser(Component):
 
     _output_var_names = ('topographic__elevation',
                          'topographic__gradient',
-                         'unit_flux',
+                         'hillslope_sediment__unit_volume_flux',
                          )
 
     _var_units = {'topographic__elevation': 'm',
                   'topographic__gradient': '-',
-                  'unit_flux': 'm**3/s',
+                  'hillslope_sediment__unit_volume_flux': 'm**2/s',
                   }
 
     _var_mapping = {'topographic__elevation': 'node',
                     'topographic__gradient': 'link',
-                    'unit_flux': 'link',
+                    'hillslope_sediment__unit_volume_flux': 'link',
                     }
 
     _var_doc = {
         'topographic__elevation': ('Land surface topographic elevation; can ' +
                                    'be overwritten in initialization'),
         'topographic__gradient': 'Gradient of surface, on links',
-        'unit_flux': 'Volume flux per unit width along links'
+        'hillslope_sediment__unit_volume_flux': 'Volume flux per unit width along links'
     }
 
     @use_file_name_or_kwds
     def __init__(self, grid, linear_diffusivity=None, method='simple',
-                 **kwds):
+                 deposit=True, **kwds):
         self._grid = grid
         self._bc_set_code = self.grid.bc_set_code
         assert method in ('simple', 'resolve_on_patches', 'on_diagonals')
@@ -202,7 +212,10 @@ class LinearDiffuser(Component):
         # *directionality* in the diffusivities.
         if self._use_patches:
             assert self._kd_on_links
-
+        # set _deposit flag to tell code whether or not diffusion can deposit.    
+        
+        self._deposit = deposit
+    
         # for component back compatibility (undocumented):
         # note component can NO LONGER do internal uplift, at all.
         # ###
@@ -252,10 +265,10 @@ class LinearDiffuser(Component):
             except FieldError:  # keep a ref
                 self.g = self.grid.at_link['topographic__gradient']
             try:
-                self.qs = self.grid.add_field('link', 'unit_flux', qs,
+                self.qs = self.grid.add_field('link', 'hillslope_sediment__unit_volume_flux', qs,
                                               noclobber=True)
             except FieldError:
-                self.qs = self.grid.at_link['unit_flux']
+                self.qs = self.grid.at_link['hillslope_sediment__unit_volume_flux']
             # note all these terms are deliberately loose, as we won't always
             # be dealing with topo
         else:
@@ -290,9 +303,8 @@ class LinearDiffuser(Component):
             self._all_d8_active_links = np.union1d(
                 self.grid.active_links, self.grid._diag_active_links)
 
-        self._angle_of_link = self.grid.angle_of_link()
-        self._vertlinkcomp = np.sin(self._angle_of_link)
-        self._hozlinkcomp = np.cos(self._angle_of_link)
+        self._vertlinkcomp = np.sin(self.grid.angle_of_link)
+        self._hozlinkcomp = np.cos(self.grid.angle_of_link)
 
         if self._use_patches or self._kd_on_links:
             mg = self.grid
@@ -534,6 +546,8 @@ class LinearDiffuser(Component):
 
             # Calculate the total rate of elevation change
             dzdt = - self.dqsds
+            if not self._deposit :
+                dzdt[np.where(dzdt>0)] = 0.
             # Update the elevations
             timestep = self.dt
             if i == (repeats):
